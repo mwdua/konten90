@@ -332,7 +332,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
         {/* Footer info/sub-text */}
         <p className="text-[10px] text-center text-slate-500 leading-normal font-sans">
-          Arsip Induk ID: <code className="font-mono bg-slate-900/10 dark:bg-slate-900 p-0.5 px-1.5 rounded">{MASTER_SHEET_ID.substring(0, 10)}...</code><br />
           Sistem Cloud Multi-Tenant oleh <strong>Arunika Kreatif Media</strong>
         </p>
 
