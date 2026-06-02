@@ -1,0 +1,6 @@
+{
+  "name": "KontenGO",
+  "description": "Aplikasi Pembuat Konten Media Sosial untuk Instansi Pemerintah, Pendidikan, dan Lembaga Islam Indonesia",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
