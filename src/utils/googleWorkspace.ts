@@ -17,6 +17,9 @@ export const auth = getAuth(firebaseApp);
 // Central Master Spreadsheet ID for Multi-Tenant registration registry & master logging
 export const MASTER_SHEET_ID = (import.meta as any).env?.VITE_MASTER_SPREADSHEET_ID || '1DOZcAkthe_r-zdV-RcS-RYNOVAkyxOiWpw66zp-0duU';
 
+// Google Apps Script Web App URL for serverless backend API mode (No Firebase / credentials on Vercel)
+export const GAS_WEBAPP_URL = (import.meta as any).env?.VITE_GAS_WEBAPP_URL || '';
+
 const provider = new GoogleAuthProvider();
 // Set required scopes for accessing drive files created by application and spreadsheets
 provider.addScope('https://www.googleapis.com/auth/drive.file');
@@ -42,6 +45,19 @@ export const initAuth = (
   onAuthSuccess: (user: User, token: string) => void,
   onAuthFailure: () => void
 ) => {
+  if (GAS_WEBAPP_URL) {
+    // If using direct Google Apps Script Web App connection (No Firebase / domain registration details required on Vercel)
+    setTimeout(() => {
+      onAuthSuccess({
+        uid: "apps-script-user",
+        displayName: "Sinergi Cloud Operator",
+        email: "operator@sinergi.mail",
+        photoURL: "https://res.cloudinary.com/maswardi/image/upload/v1768753170/akm_500_x_300_px_op0l8f.png"
+      } as any, "APPS_SCRIPT_PROXIED_MODE");
+    }, 100);
+    return () => {};
+  }
+
   // Try to retrieve token from memory or sessionStorage if already active
   return onAuthStateChanged(auth, async (user) => {
     if (user) {
@@ -71,6 +87,22 @@ export const initAuth = (
 
 // Sign in with Google Dialog
 export const googleSignIn = async (): Promise<{ user: User; accessToken: string } | null> => {
+  if (GAS_WEBAPP_URL) {
+    cachedAccessToken = "APPS_SCRIPT_PROXIED_MODE";
+    try {
+      sessionStorage.setItem('kontengo_google_oauth_token', cachedAccessToken);
+    } catch (e) {}
+    return {
+      user: {
+        uid: "apps-script-user",
+        displayName: "Sinergi Cloud Operator",
+        email: "operator@sinergi.mail",
+        photoURL: "https://res.cloudinary.com/maswardi/image/upload/v1768753170/akm_500_x_300_px_op0l8f.png"
+      } as any,
+      accessToken: cachedAccessToken
+    };
+  }
+
   try {
     isSigningIn = true;
     await setPersistence(auth, browserSessionPersistence);
@@ -98,6 +130,14 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
 
 // Log out and clear memory
 export const googleLogOut = async (): Promise<void> => {
+  if (GAS_WEBAPP_URL) {
+    cachedAccessToken = null;
+    try {
+      sessionStorage.removeItem('kontengo_google_oauth_token');
+    } catch (e) {}
+    return;
+  }
+
   await auth.signOut();
   cachedAccessToken = null;
   try {
@@ -134,6 +174,11 @@ export const handleAuthError = (status: number) => {
 
 // Search for active folder or create it if missing
 export const getOrCreateFolder = async (folderName: string, accessToken: string): Promise<string> => {
+  if (GAS_WEBAPP_URL) {
+    // In serverless Web App mode, we return the folder ID directly (which is fetched from spreadsheet)
+    return folderName;
+  }
+
   const query = encodeURIComponent(`name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`);
   
   // 1. Search for folder
@@ -190,7 +235,47 @@ export const uploadImageToDrive = async (
   folderId: string, 
   accessToken: string
 ): Promise<{ id: string; viewLink: string }> => {
-  
+  if (GAS_WEBAPP_URL) {
+    // Convert blob to base64 so we can fetch it via Apps Script
+    const reader = new FileReader();
+    const base64Promise = new Promise<string>((resolve) => {
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          const base64Content = reader.result.split(',')[1];
+          resolve(base64Content);
+        }
+      };
+      reader.readAsDataURL(imageBlob);
+    });
+    
+    const base64Data = await base64Promise;
+
+    const res = await fetch(GAS_WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'uploadFile',
+        folderId: folderId,
+        base64Data: base64Data,
+        fileName: fileName
+      }),
+      referrerPolicy: "no-referrer"
+    });
+
+    if (!res.ok) {
+      throw new Error(`Gagal upload berkas ke Google Drive via Apps Script: ${res.statusText}`);
+    }
+
+    const data = await res.json();
+    if (data.status === 'success') {
+      return {
+        id: data.id,
+        viewLink: data.viewLink || `https://drive.google.com/file/d/${data.id}/view?usp=drivesdk`
+      };
+    } else {
+      throw new Error(data.message || 'Gagal mengunggah ke Drive via Apps Script API');
+    }
+  }
+
   // 1. Multipart body creation for File Metadata + File Content
   const boundary = '-------314159265358979323846';
   const delimiter = `\r\n--${boundary}\r\n`;
@@ -337,6 +422,9 @@ export const createNewSpreadsheet = async (title: string, accessToken: string): 
 
 // Check if spreadsheet is valid
 export const getSpreadsheetTitle = async (spreadsheetId: string, accessToken: string): Promise<string> => {
+  if (GAS_WEBAPP_URL) {
+    return "Sinergi Spreadsheet Target";
+  }
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=properties(title)`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` }
@@ -357,6 +445,9 @@ export const getSpreadsheetTitle = async (spreadsheetId: string, accessToken: st
 
 // Check if sheet exists, or prepare the first sheet for highest visibility to the user
 export const ensureSheetExists = async (spreadsheetId: string, accessToken: string): Promise<string> => {
+  if (GAS_WEBAPP_URL) {
+    return "Daftar Desain Poster";
+  }
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties(title)`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` }
@@ -440,6 +531,29 @@ export const appendRowToSpreadsheet = async (
   values: string[][], 
   accessToken: string
 ): Promise<void> => {
+  if (GAS_WEBAPP_URL) {
+    const res = await fetch(GAS_WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'appendRow',
+        spreadsheetId: spreadsheetId,
+        sheetName: sheetName,
+        values: values
+      }),
+      referrerPolicy: "no-referrer"
+    });
+
+    if (!res.ok) {
+      throw new Error(`Gagal mencatat data ke Spreadsheet via Apps Script: ${res.statusText}`);
+    }
+
+    const data = await res.json();
+    if (data.status !== 'success') {
+      throw new Error(data.message || 'Gagal menambahkan baris di Spreadsheet.');
+    }
+    return;
+  }
+
   const range = encodeURIComponent(`'${sheetName}'!A1`);
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED`;
   
@@ -473,6 +587,29 @@ export const getSpreadsheetRows = async (
   sheetName: string,
   accessToken: string
 ): Promise<string[][]> => {
+  if (GAS_WEBAPP_URL) {
+    const res = await fetch(GAS_WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'getRows',
+        spreadsheetId: spreadsheetId,
+        sheetName: sheetName
+      }),
+      referrerPolicy: "no-referrer"
+    });
+
+    if (!res.ok) {
+      throw new Error(`Gagal memuat baris dari Apps Script: ${res.statusText}`);
+    }
+
+    const data = await res.json();
+    if (data.status === 'success') {
+      return data.values || [];
+    } else {
+      throw new Error(data.message || 'Gagal sinkronisasi data arsip via Apps Script.');
+    }
+  }
+
   const range = encodeURIComponent(`'${sheetName}'!A2:H1000`);
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`;
   

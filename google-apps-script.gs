@@ -269,3 +269,125 @@ function showDeveloperInfo() {
   
   SpreadsheetApp.getUi().showModalDialog(htmlOutput, 'Tentang Kreator & Developer');
 }
+
+/**
+ * ==============================================================================
+ * INTERNAL WEB APP API FOR VERCEL DEPLOYMENT (OPTION A: WEB APP PROXY API)
+ * Allows KontenGO Frontend on Vercel to access Sheets & Drive securely without Firebase!
+ * ==============================================================================
+ */
+
+function doPost(e) {
+  var result = {};
+  try {
+    var params;
+    if (e && e.postData && e.postData.contents) {
+      params = JSON.parse(e.postData.contents);
+    } else if (e && e.parameter) {
+      params = e.parameter;
+    } else {
+      params = {};
+    }
+
+    var action = params.action;
+    
+    if (action === "getMasterRows") {
+      var masterId = params.masterId || "1DOZcAkthe_r-zdV-RcS-RYNOVAkyxOiWpw66zp-0duU";
+      var ss = SpreadsheetApp.openById(masterId);
+      var sheetName = params.sheetName || "Daftar Desa/Lembaga";
+      var sheet = ss.getSheetByName(sheetName);
+      if (!sheet) {
+        throw new Error("Sheet '" + sheetName + "' tidak ditemukan di Spreadsheet Induk.");
+      }
+      var lastRow = sheet.getLastRow();
+      var values = [];
+      if (lastRow >= 2) {
+        values = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+      }
+      result = { status: "success", values: values };
+    } 
+    else if (action === "getRows") {
+      var spreadsheetId = params.spreadsheetId;
+      var sheetName = params.sheetName || "Daftar Desain Poster";
+      var ss = SpreadsheetApp.openById(spreadsheetId);
+      var sheet = ss.getSheetByName(sheetName);
+      if (!sheet) {
+        throw new Error("Halaman sheet tidak ditemukan.");
+      }
+      var lastRow = sheet.getLastRow();
+      var values = [];
+      if (lastRow >= 2) {
+        values = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+      }
+      result = { status: "success", values: values };
+    }
+    else if (action === "appendRow") {
+      var spreadsheetId = params.spreadsheetId;
+      var sheetName = params.sheetName || "Daftar Desain Poster";
+      var rowData = params.values; // Array of arrays
+      
+      var ss = SpreadsheetApp.openById(spreadsheetId);
+      var sheet = ss.getSheetByName(sheetName);
+      if (!sheet) {
+        var sheets = ss.getSheets();
+        sheet = sheets[0];
+      }
+      
+      // If sheet has no rows, write headers first
+      if (sheet.getLastRow() === 0) {
+        sheet.appendRow([
+          'No', 
+          'Waktu Ekspor', 
+          'Nama Instansi', 
+          'Pimpinan/Sub-Judul', 
+          'Judul Utama', 
+          'Format Rasio', 
+          'Quotes / Editorial', 
+          'Link Gambar GDrive'
+        ]);
+      }
+      
+      for (var i = 0; i < rowData.length; i++) {
+        sheet.appendRow(rowData[i]);
+      }
+      result = { status: "success" };
+    }
+    else if (action === "uploadFile") {
+      var folderId = params.folderId;
+      var base64Data = params.base64Data;
+      var fileName = params.fileName;
+      
+      var folder = DriveApp.getFolderById(folderId);
+      var contentType = "image/png";
+      var bytes = Utilities.base64Decode(base64Data);
+      var blob = Utilities.newBlob(bytes, contentType, fileName);
+      var file = folder.createFile(blob);
+      
+      // Set to anyone with link view scope
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      
+      result = {
+        status: "success",
+        id: file.getId(),
+        viewLink: file.getUrl()
+      };
+    }
+    else {
+      throw new Error("Aksi API '" + action + "' tidak dikenali.");
+    }
+  } catch (error) {
+    result = { status: "error", message: error.toString() };
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doGet(e) {
+  var action = (e && e.parameter) ? e.parameter.action : null;
+  if (action === "check") {
+    return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "API Google Apps Script KontenGO Aktif!" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  return doPost(e);
+}
