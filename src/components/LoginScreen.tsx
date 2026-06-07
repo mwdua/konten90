@@ -110,7 +110,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       }
 
       if (!matchedRow) {
-        throw new Error(`Kode Unik / Password "${cleanCode}" tidak terdaftar di database Spreadsheet Induk.`);
+        let debugDetails = 'Kosong';
+        if (rows && rows.length > 0) {
+          debugDetails = rows.map((r, i) => `#${i+2}: "${r[0] || 'N/A'}" (Len: ${(r[0] || '').toString().length})`).join(', ');
+        }
+        throw new Error(`Kode Unik / Password "${cleanCode}" tidak terdaftar di database Spreadsheet Induk.\n\nData terbaca di Sheet: [${debugDetails}].\n\nPastikan Anda telah mendeploy/mem-publish ulang Google Apps Script Anda ke "Version: New" (Sangat Penting agar perubahan API aktif).`);
       }
 
       const targetDesa = matchedRow[1] || 'Desa Akses';
