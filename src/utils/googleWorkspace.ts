@@ -588,13 +588,27 @@ export const getSpreadsheetRows = async (
   accessToken: string
 ): Promise<string[][]> => {
   if (GAS_WEBAPP_URL) {
-    const res = await fetch(GAS_WEBAPP_URL, {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'getRows',
-        spreadsheetId: spreadsheetId,
-        sheetName: sheetName
-      }),
+    const isMaster = spreadsheetId === MASTER_SHEET_ID || sheetName === 'Daftar Desa/Lembaga';
+    const actionName = isMaster ? 'getMasterRows' : 'getRows';
+
+    const queryParams = new URLSearchParams({
+      action: actionName,
+      spreadsheetId: spreadsheetId,
+      masterId: spreadsheetId,
+      sheetName: sheetName
+    });
+    
+    const url = `${GAS_WEBAPP_URL}${GAS_WEBAPP_URL.includes('?') ? '&' : '?'}${queryParams.toString()}`;
+    
+    console.log(`[KontenGO API] Memulai sinkronisasi data via GET:`, {
+      action: actionName,
+      spreadsheetId,
+      sheetName,
+      targetUrl: url
+    });
+
+    const res = await fetch(url, {
+      method: 'GET',
       referrerPolicy: "no-referrer"
     });
 
@@ -603,6 +617,8 @@ export const getSpreadsheetRows = async (
     }
 
     const data = await res.json();
+    console.log(`[KontenGO API] Respons diterima dari Apps Script:`, data);
+
     if (data.status === 'success') {
       return data.values || [];
     } else {

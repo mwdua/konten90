@@ -76,7 +76,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       try {
         rows = await getSpreadsheetRows(MASTER_SHEET_ID, 'Daftar Desa/Lembaga', token);
       } catch (err: any) {
-        throw new Error("Tab 'Daftar Desa/Lembaga' tidak ditemukan di Spreadsheet Induk pendaftaran.");
+        throw new Error(`Gagal memuat daftar desa dari Spreadsheet Induk.\n\nPenyebab: ${err.message || err || 'Koneksi terputus'}.\n\nSolusi: Jika dideploy di Vercel, pastikan Anda telah mengisi variabel lingkungan VITE_GAS_WEBAPP_URL dengan benar di dashboard Vercel.`);
       }
 
       // 3. Find unique code in registered rows (Column A / index 0)
@@ -112,9 +112,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       if (!matchedRow) {
         let debugDetails = 'Kosong';
         if (rows && rows.length > 0) {
-          debugDetails = rows.map((r, i) => `#${i+2}: "${r[0] || 'N/A'}" (Len: ${(r[0] || '').toString().length})`).join(', ');
+          debugDetails = rows.map((r, i) => `#${i+2}: "${r[0] || 'N/A'}"`).join(', ');
         }
-        throw new Error(`Kode Unik / Password "${cleanCode}" tidak terdaftar di database Spreadsheet Induk.\n\nData terbaca di Sheet: [${debugDetails}].\n\nPastikan Anda telah mendeploy/mem-publish ulang Google Apps Script Anda ke "Version: New" (Sangat Penting agar perubahan API aktif).`);
+        throw new Error(`Kode Unik / Password "${cleanCode}" tidak terdaftar di database Spreadsheet Induk (ID: ${MASTER_SHEET_ID}).\n\nData terbaca di Sheet: [${debugDetails}].\n\nSolusi:\n1. Pastikan isi kolom "Kode Unik / Password" di Spreadsheet Anda benar.\n2. Verifikasi ulang di Vercel Dashboard bahwa Anda telah mengisi variabel lingkungan VITE_MASTER_SPREADSHEET_ID dan VITE_GAS_WEBAPP_URL.\n3. Jangan lupa untuk mem-publish ulang Google Apps Script Anda sebagai Web App ke "Version: New" (Sangat Penting agar perubahan API aktif).`);
       }
 
       const targetDesa = matchedRow[1] || 'Desa Akses';
