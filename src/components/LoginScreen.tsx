@@ -193,7 +193,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             />
           </div>
           <h1 className="font-heading font-black text-2xl sm:text-3xl leading-tight bg-gradient-to-r from-emerald-400 via-indigo-500 to-amber-400 bg-clip-text text-transparent transform select-none px-1">
-            KontenGO Master
+            KontenGO
           </h1>
           <p className="text-xs text-slate-400 font-semibold uppercase tracking-widest mt-1.5 leading-none">
             Multi-Tenant Web Studio
@@ -355,7 +355,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             
             <div className="flex flex-col gap-3 font-sans text-xs text-slate-400 leading-relaxed">
               <p>
-                Aplikasi <strong>KontenGO Master</strong> menggunakan sistem database cloud terintegrasi di Google Sheets untuk mengontrol hak akses operasional desa.
+                Aplikasi <strong>KontenGO</strong> menggunakan sistem database cloud terintegrasi di Google Sheets untuk mengontrol hak akses operasional desa.
               </p>
               
               <div className="flex flex-col gap-2 bg-slate-950/20 dark:bg-slate-950/60 p-3.5 rounded-2xl border border-indigo-500/10">
@@ -386,7 +386,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
       {/* Bottom copy */}
       <footer className="text-center p-2 text-[9px] text-slate-500/80 mt-auto leading-none">
-        © 2026 KontenGO Master • Member of Arunika Kreatif Media
+        © 2026 KontenGO • Member of Arunika Kreatif Media
       </footer>
 
     </div>
